@@ -3,7 +3,7 @@ const Bargain = require("../Controller/bargainController");
 
 exports.socketMiddleware = (socket, next) => {
   const { id, name } = socket.handshake.auth;
-  if (!id && !name) {
+  if (!id || !name) {
     console.log("Id or name not provided");
     return next(new Error("invalid id or name"));
   }
@@ -18,15 +18,16 @@ exports.onConnect = (socket) => {
 
   socket.on("create-chat", async (data) => {
     const res = await Chat.createChat(data);
-    console.log({res});
-    if (res.status == 200 || res.status == 201)
+    console.log({ res });
+    if (res.status == 200 || res.status == 201) {
       socket.to(data.dealer_id).emit("chat-created", res);
-    return socket.emit("chat-created", res);
-
-    socket.emit("chat-created", {
-      status: res.statusCode,
-      message: res.message,
-    });
+      socket.emit("chat-created", res);
+    } else {
+      socket.emit("chat-created", {
+        status: res.statusCode || 500,
+        message: res.message || "Failed to create chat",
+      });
+    }
   });
 
   socket.on("send-message", async (data) => {

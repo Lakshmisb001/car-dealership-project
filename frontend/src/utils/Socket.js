@@ -1,17 +1,21 @@
 import { io } from "socket.io-client";
 
 var socket;
-// https://car-dealership-backend.onrender.com/
+
 export const initializeConnection = (user) => {
-  socket = io("https://car-dealership-backend-production.up.railway.app/", {
+  if (socket?.connected) return;
+
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+
+  const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5002";
+  socket = io(backendUrl, {
     autoConnect: false,
   });
   socket.auth = { id: user._id, name: user.user_name };
   socket.connect();
-
-  socket.onAny((event, ...args) => {
-    console.log(event, args);
-  });
 };
 
 export const sendMessage = (data) => {

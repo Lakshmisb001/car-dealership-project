@@ -76,7 +76,7 @@ const Bargains = () => {
     };
 
     sendPrice(data);
-    getSocket()?.on("price-sent", (res) => {
+    getSocket()?.once("price-sent", (res) => {
       if (res.status == 200) {
         dispatch(addPrice(res.bargain));
         priceInput.value = "";
@@ -95,9 +95,9 @@ const Bargains = () => {
         <h3 className="lg:text-lg text-base font-semibold  sticky  z-50 top-0 left-0 bg-[#0e4e92]  text-white p-2 lg:p-3 rounded-lg">
           Chats
         </h3>
-        {user?.chat.map((chat) => {
+        {(user?.chat || []).map((chat) => {
           const isUnread =
-            chat.messages[chat.messages.length - 1]?.sender == user?._id
+            (chat.messages || [])[chat.messages?.length - 1]?.sender == user?._id
               ? false
               : chat.unread;
 
@@ -291,7 +291,7 @@ const Bargains = () => {
                               onClick={() => {
                                 console.log(bargain._id);
                                 getSocket().emit("price-accept", bargain._id);
-                                getSocket().on("price-accepted", (data) => {
+                                getSocket().once("price-accepted", (data) => {
                                   console.log("price-accepted", data);
                                   data.status == 200 &&
                                     dispatch(acceptPrice(data.bargain));
@@ -305,7 +305,7 @@ const Bargains = () => {
                               onClick={() => {
                                 console.log(bargain._id);
                                 getSocket().emit("price-reject", bargain._id);
-                                getSocket().on("price-rejected", (data) => {
+                                getSocket().once("price-rejected", (data) => {
                                   console.log("price-rejected", data);
                                   data.status == 200 &&
                                     dispatch(rejectPrice(data.bargain));

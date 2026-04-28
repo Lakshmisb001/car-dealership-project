@@ -102,7 +102,7 @@ const ChatBuyer = () => {
     };
 
     sendPrice(data);
-    getSocket().on("price-sent", (res) => {
+    getSocket().once("price-sent", (res) => {
       if (res.status == 200) {
         dispatch(addPrice(res.bargain));
         priceInput.value = "";
@@ -153,9 +153,9 @@ const ChatBuyer = () => {
           className="lg:flex-[0.3] flex-[.4] p-1 divide-y-2 divide-gray-200 overflow-y-scroll overflow-x-hidden"
         >
           {/* ALL CHATS */}
-          {user?.chat.map((chat) => {
+          {(user?.chat || []).map((chat) => {
             const isUnread =
-              chat.message &&
+              chat.messages?.length &&
               chat?.messages[chat?.messages?.length - 1]?.sender == user?._id
                 ? false
                 : chat.unread;
@@ -173,7 +173,7 @@ const ChatBuyer = () => {
               >
                 <div className="col-start-1 row-start-1   row-span-2 border bg-white border-red-500 rounded-md">
                   <img
-                    src={chat?.car_id?.image.main.url ?? CarImage}
+                    src={(typeof chat?.car_id?.image === "string" ? chat.car_id.image : chat?.car_id?.image?.main?.url) ?? CarImage}
                     alt="car_img"
                     className="h-full w-full object-contain rounded-md"
                   />
@@ -238,7 +238,7 @@ const ChatBuyer = () => {
               >
                 <div className="h-[3vmax] w-[3vmax] rounded-full overflow-hidden bg-white border border-red-400">
                   <img
-                    src={selectedChat?.car_id?.image?.main?.url ?? CarImage}
+                    src={(typeof selectedChat?.car_id?.image === "string" ? selectedChat.car_id.image : selectedChat?.car_id?.image?.main?.url) ?? CarImage}
                     alt="car_img"
                     className="h-full w-full object-contain rounded-md"
                   />
@@ -368,7 +368,7 @@ const ChatBuyer = () => {
                                       "price-accept",
                                       bargain._id
                                     );
-                                    getSocket().on("price-accepted", (data) => {
+                                    getSocket().once("price-accepted", (data) => {
                                       console.log("price-accepted", data);
                                       data.status == 200 &&
                                         dispatch(acceptPrice(data.bargain));
@@ -385,7 +385,7 @@ const ChatBuyer = () => {
                                       "price-reject",
                                       bargain._id
                                     );
-                                    getSocket().on("price-rejected", (data) => {
+                                    getSocket().once("price-rejected", (data) => {
                                       console.log("price-rejected", data);
                                       data.status == 200 &&
                                         dispatch(rejectPrice(data.bargain));

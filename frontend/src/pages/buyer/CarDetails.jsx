@@ -10,15 +10,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   asyncAddWatchList,
-  // asyncDeleteReview,
   asyncDeleteWatchList,
-  asyncMakePayment,
-  asyncVerifyPayment,
 } from "../../store/actions/carActions";
 import {
   notifyError,
   notifyErrorPromise,
-  // notifyErrorPromise,
   notifyInfo,
   notifyPendingPromise,
   notifySuccess,
@@ -26,16 +22,11 @@ import {
 } from "../../utils/Toast";
 import { getSocket } from "../../utils/Socket";
 import { addChat, updateSelectedChat } from "../../store/reducers/appReducer";
-import useRazorpay from "react-razorpay";
 import RatingAndReview from "../../components/RatingAndReview";
 import Ribbon from "../../components/Ribbon";
 import Rating from "@mui/material/Rating";
-import { useMediaQuery } from "@mui/material";
-import { loadStripe } from "@stripe/stripe-js";
-import axiosInstance from "../../utils/Axios";
 
 const CarDetail = () => {
-  const [Razorpay] = useRazorpay();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, selectedCar, userType, isAuthenticated, allCars, watchList } =
@@ -70,10 +61,11 @@ const CarDetail = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [index, setIndex] = useState(-1);
 
+  const flatImg = typeof selectedCar?.image === "string" ? selectedCar.image : null;
   let images = [
-    selectedCar?.image?.main?.url || Car_img,
-    selectedCar?.image?.secondary?.url || Car_img,
-    selectedCar?.image?.tertiary?.url || Car_img,
+    flatImg || selectedCar?.image?.main?.url || Car_img,
+    flatImg || selectedCar?.image?.secondary?.url || Car_img,
+    flatImg || selectedCar?.image?.tertiary?.url || Car_img,
   ];
 
   const handleBargain = (e) => {
@@ -103,54 +95,12 @@ const CarDetail = () => {
     dispatch(updateSelectedChat(user.chat[index]));
   };
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (!isAuthenticated) {
-      notifyInfo("Login to perfrom actions!");
+      notifyInfo("Login to perform actions!");
       return navigate("/sign-in");
     }
-    const id = notifyPendingPromise("Opening Payment Page...");
-    console.log("buy now");
-    // const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISH_KEY);
-    const res = await dispatch(asyncMakePayment(selectedCar?._id, user?._id));
-    console.log({ res });
-    // const result = stripe.redirectToCheckout({ sessionId: res.data.id });
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY, // Enter the Key ID generated from the Dashboard
-      amount: res.data.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
-      currency: "INR",
-      name: "CARMAX", //your business name
-      description: "Test Transaction",
-      image: selectedCar?.image?.main?.url,
-      order_id: res.data.id, //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
-      handler: function (response) {
-        dispatch(asyncVerifyPayment(response, selectedCar?._id)).then((res) => {
-          const id = notifyPendingPromise("Verifying...");
-          if (res == 200) {
-            notifySuccessPromise(id, "Verified successfully!");
-            navigate("/buyer/my-cars");
-          } else {
-            notifyErrorPromise(id, "Failed to verify!");
-            notifyError(res.message);
-          }
-        });
-        console.log({ response });
-      },
-      prefill: {
-        //We recommend using the prefill parameter to auto-fill customer's contact information especially their phone number
-        name: user?.user_name, //your customer's name
-        email: user?.email,
-        contact: "9000090000", //Provide the customer's phone number for better conversion rates
-      },
-      notes: {
-        address: "Razorpay Corporate Office",
-      },
-      theme: {
-        color: "#1572D3",
-      },
-    };
-    const razor = new Razorpay(options);
-    razor.open();
-    notifySuccessPromise(id, "Opened successfully!");
+    navigate("/payment");
   };
 
  
@@ -274,7 +224,7 @@ const CarDetail = () => {
                       </p>
 
                       <p className="mt-1 text-[#596780] text-sm font-normal capitalize">
-                        Dealer : {selectedCar?.dealer_id.user_name}
+                        Dealer : {selectedCar?.dealer_id?.user_name || "—"}
                       </p>
                     </div>
                     <div className="md:p-2 md:bg-white md:shadow-md cursor-pointer rounded-full mt-2 md:mt-0">

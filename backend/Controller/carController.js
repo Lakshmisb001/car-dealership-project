@@ -5,6 +5,24 @@ const Car = require("../Models/carSchema");
 const Dealer = require("../Models/dealerSchema");
 let imageKit = require("../Utils/imageKit").initImageKit();
 const path = require("path");
+const fs = require("fs");
+
+const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const saveLocalImage = async (file, prefix) => {
+  const fileName = `${prefix}-${Date.now()}${path.extname(file.name)}`;
+  const filePath = path.join(UPLOADS_DIR, fileName);
+  await file.mv(filePath);
+  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+  return { fileId: fileName, url: `${baseUrl}/uploads/${fileName}` };
+};
+
+const deleteLocalImage = (fileId) => {
+  if (!fileId) return;
+  const filePath = path.join(UPLOADS_DIR, fileId);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+};
 
 const validateInput = [
   body("type").notEmpty().withMessage("Type is required to create car"),
@@ -36,44 +54,45 @@ exports.createCar = [
     console.log(req.body);
     const car = await Car(req.body);
 
-    if (req.files && imageKit) {
+    if (req.files) {
       const mainImage = req.files["images[main]"];
       const secondaryImage = req.files["images[secondary]"];
       const tertiaryImage = req.files["images[tertiary]"];
 
       if (mainImage && secondaryImage && tertiaryImage) {
-        const modifiedMainImgName = `car-main-${Date.now()}${path.extname(
-          mainImage.name
-        )}`;
-        const modifiedSecondaryImgName = `car-secondary-${Date.now()}${path.extname(
-          secondaryImage.name
-        )}`;
-        const modifiedTertiaryImgName = `car-tertiary-${Date.now()}${path.extname(
-          tertiaryImage.name
-        )}`;
+        if (imageKit) {
+          const modifiedMainImgName = `car-main-${Date.now()}${path.extname(mainImage.name)}`;
+          const modifiedSecondaryImgName = `car-secondary-${Date.now()}${path.extname(secondaryImage.name)}`;
+          const modifiedTertiaryImgName = `car-tertiary-${Date.now()}${path.extname(tertiaryImage.name)}`;
 
-        const { fileId: mainFileId, url: mainUrl } = await imageKit.upload({
-          file: mainImage.data,
-          fileName: modifiedMainImgName,
-        });
+          const [
+            { fileId: mainFileId, url: mainUrl },
+            { fileId: secondaryFileId, url: secondaryUrl },
+            { fileId: tertiaryFileId, url: tertiaryUrl },
+          ] = await Promise.all([
+            imageKit.upload({ file: mainImage.data, fileName: modifiedMainImgName }),
+            imageKit.upload({ file: secondaryImage.data, fileName: modifiedSecondaryImgName }),
+            imageKit.upload({ file: tertiaryImage.data, fileName: modifiedTertiaryImgName }),
+          ]);
 
-        const { fileId: secondaryFileId, url: secondaryUrl } =
-          await imageKit.upload({
-            file: secondaryImage.data,
-            fileName: modifiedSecondaryImgName,
-          });
-
-        const { fileId: tertiaryFileId, url: tertiaryUrl } =
-          await imageKit.upload({
-            file: tertiaryImage.data,
-            fileName: modifiedTertiaryImgName,
-          });
-
-        car.image = {
-          main: { fileId: mainFileId, url: mainUrl },
-          secondary: { fileId: secondaryFileId, url: secondaryUrl },
-          tertiary: { fileId: tertiaryFileId, url: tertiaryUrl },
-        };
+          car.image = {
+            main: { fileId: mainFileId, url: mainUrl },
+            secondary: { fileId: secondaryFileId, url: secondaryUrl },
+            tertiary: { fileId: tertiaryFileId, url: tertiaryUrl },
+          };
+        } else {
+          // Local storage fallback
+          const [mainResult, secondaryResult, tertiaryResult] = await Promise.all([
+            saveLocalImage(mainImage, "car-main"),
+            saveLocalImage(secondaryImage, "car-secondary"),
+            saveLocalImage(tertiaryImage, "car-tertiary"),
+          ]);
+          car.image = {
+            main: mainResult,
+            secondary: secondaryResult,
+            tertiary: tertiaryResult,
+          };
+        }
       } else {
         console.error("One or more images are missing.");
       }
@@ -129,95 +148,72 @@ exports.createCar = [
 // });
 
 exports.getAllCars = catchAsyncErrors(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1; // Extract page from query parameter, default to 1 if not provided
-  const types = req.query.type ? req.query.type.split(",") : []; // Extract types from query parameter
-  const capacities = req.query.capacity ? req.query.capacity.split(",") : []; // Extract capacities from query parameter
-
-  // Calculate start and end indices based on the requested page
-  const pageSize = 20; // Number of cars per page
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = 20;
   const start = (page - 1) * pageSize;
 
-  // Construct query object based on types
+  const types = req.query.type ? req.query.type.split(",") : [];
+  const capacities = req.query.capacity ? req.query.capacity.split(",") : [];
+  const search = req.query.search ? req.query.search.trim() : "";
+  const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : undefined;
+  const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : undefined;
+  const sortParam = req.query.sort || "newest";
+
   const query = {};
+
   if (types.length > 0) query.type = { $in: types };
 
-  // If no capacities provided, fetch all cars for the specified page
-  if (capacities.length === 0) {
-    const cars = await Car.find(query)
-      .sort({ createdAt: -1 })
-      .skip(start)
-      .limit(pageSize)
-      .populate({
-        path: "dealer_id",
-        select: "user_name", // Populate only the user_name field of the dealer_id reference
-      })
-      .populate({
-        path: "review",
-        select: "rating comment",
-        options: { sort: { createdAt: -1 } },
-        populate: {
-          path: "buyer_id",
-          select: "user_name", // Populate only the user_name field of the buyer_id reference
-        },
-      });
-
-    res.status(200).json({ cars });
-    return;
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { model: { $regex: search, $options: "i" } },
+      { type: { $regex: search, $options: "i" } },
+    ];
   }
 
-  // Fetch cars based on query and pagination
-  let cars = [];
-
-  for (let capacity of capacities) {
-    // Parse the capacity value as an integer
-    capacity = parseInt(capacity);
-
-    if (isNaN(capacity)) {
-      // Skip if capacity value is not a valid number
-      continue;
-    }
-
-    let capacityQuery = { ...query };
-
-    if (capacity === 8) {
-      // For capacity 8 or more, fetch all capacities greater than or equal to 8
-      capacityQuery.capacity = { $gte: 8 };
-    } else {
-      // For other capacities, fetch the requested capacity only
-      capacityQuery.capacity = capacity;
-    }
-
-    // Fetch cars for the current capacity value
-    const carsForCapacity = await Car.find(capacityQuery)
-      .sort({ createdAt: -1 })
-      .limit(pageSize)
-      .populate({
-        path: "dealer_id",
-        select: "user_name", // Populate only the user_name field of the dealer_id reference
-      })
-      .populate({
-        path: "review",
-        select: "rating comment",
-        options: { sort: { createdAt: -1 } },
-        populate: {
-          path: "buyer_id",
-          select: "user_name", // Populate only the user_name field of the buyer_id reference
-        },
-      });
-
-    console.log({ carsForCapacity });
-
-    // Concatenate the fetched cars to the result array
-    cars = cars.concat(carsForCapacity);
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    query.price = {};
+    if (minPrice !== undefined) query.price.$gte = minPrice;
+    if (maxPrice !== undefined) query.price.$lte = maxPrice;
   }
 
-  // Sort the result array by createdAt date
-  cars.sort((a, b) => b.createdAt - a.createdAt);
+  if (capacities.length > 0) {
+    const capacityConditions = capacities
+      .map((c) => parseInt(c))
+      .filter((c) => !isNaN(c))
+      .map((c) => (c >= 8 ? { capacity: { $gte: 8 } } : { capacity: c }));
+    if (capacityConditions.length > 0) {
+      query.$or = query.$or
+        ? [...query.$or, ...capacityConditions]
+        : capacityConditions;
+    }
+  }
 
-  // Paginate the result array
-  cars = cars.slice(start, start + pageSize);
+  const sortMap = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    price_asc: { price: 1 },
+    price_desc: { price: -1 },
+    rating: { rating: -1 },
+  };
+  const sortOrder = sortMap[sortParam] || sortMap.newest;
 
-  res.status(200).json({ cars });
+  const populate = [
+    { path: "dealer_id", select: "user_name" },
+    {
+      path: "review",
+      select: "rating comment",
+      options: { sort: { createdAt: -1 } },
+      populate: { path: "buyer_id", select: "user_name" },
+    },
+  ];
+
+  const [cars, total] = await Promise.all([
+    Car.find(query).sort(sortOrder).skip(start).limit(pageSize).populate(populate),
+    Car.countDocuments(query),
+  ]);
+
+  res.status(200).json({ cars, total, page, pageSize });
 });
 
 //GET CAR BY ID
@@ -321,55 +317,50 @@ exports.updateCarByID = catchAsyncErrors(async (req, res, next) => {
 
   if (description) car.description = description;
 
-  if (car.door) car.door = door;
+  if (door !== undefined) car.door = door;
 
-  if (car.air_conditioner) car.air_conditioner = air_conditioner;
+  if (air_conditioner !== undefined) car.air_conditioner = air_conditioner;
 
-  if (car.fuel_capacity) car.fuel_capacity = fuel_capacity;
+  if (fuel_capacity !== undefined) car.fuel_capacity = fuel_capacity;
 
   if (transmission) car.transmission = transmission;
 
-  if (imageKit && mainImage) {
-  await imageKit.deleteFile(car.image.main.fileId).catch(() => {});
-  
-  const { fileId, url } = await imageKit.upload({
-    file: mainImage.data,
-    fileName: modifiedMainImgName,
-  });
+  car.image = car.image || {};
 
-  car.image.main = { fileId, url };
-}
+  if (mainImage) {
+    if (imageKit) {
+      await imageKit.deleteFile(car.image?.main?.fileId).catch(() => {});
+      const modifiedMainImgName = `car-main-${Date.now()}${path.extname(mainImage.name)}`;
+      const { fileId, url } = await imageKit.upload({ file: mainImage.data, fileName: modifiedMainImgName });
+      car.image.main = { fileId, url };
+    } else {
+      deleteLocalImage(car.image?.main?.fileId);
+      car.image.main = await saveLocalImage(mainImage, "car-main");
+    }
+  }
 
   if (secondaryImage) {
-    await imageKit
-      .deleteFile(car.image.secondary.fileId)
-      .catch((err) => console.log(err));
-
-    const modifiedSecondaryImgName = `car-main-${Date.now()}${path.extname(
-      secondaryImage.name
-    )}`;
-    const { fileId, url } = await imageKit.upload({
-      file: secondaryImage.data,
-      fileName: modifiedSecondaryImgName,
-    });
-    car.image.secondary = { fileId, url };
+    if (imageKit) {
+      await imageKit.deleteFile(car.image?.secondary?.fileId).catch(() => {});
+      const modifiedSecondaryImgName = `car-secondary-${Date.now()}${path.extname(secondaryImage.name)}`;
+      const { fileId, url } = await imageKit.upload({ file: secondaryImage.data, fileName: modifiedSecondaryImgName });
+      car.image.secondary = { fileId, url };
+    } else {
+      deleteLocalImage(car.image?.secondary?.fileId);
+      car.image.secondary = await saveLocalImage(secondaryImage, "car-secondary");
+    }
   }
 
   if (tertiaryImage) {
-    await imageKit
-      .deleteFile(car.image.tertiary.fileId)
-      .catch((err) => console.log("Deleting error:-", err));
-
-    const modifiedTertiaryImgName = `car-main-${Date.now()}${path.extname(
-      tertiaryImage.name
-    )}`;
-
-    const { fileId, url } = await imageKit.upload({
-      file: tertiaryImage.data,
-      fileName: modifiedTertiaryImgName,
-    });
-    console.log(fileId, url);
-    car.image.tertiary = { fileId, url };
+    if (imageKit) {
+      await imageKit.deleteFile(car.image?.tertiary?.fileId).catch(() => {});
+      const modifiedTertiaryImgName = `car-tertiary-${Date.now()}${path.extname(tertiaryImage.name)}`;
+      const { fileId, url } = await imageKit.upload({ file: tertiaryImage.data, fileName: modifiedTertiaryImgName });
+      car.image.tertiary = { fileId, url };
+    } else {
+      deleteLocalImage(car.image?.tertiary?.fileId);
+      car.image.tertiary = await saveLocalImage(tertiaryImage, "car-tertiary");
+    }
   }
 
   const updatedCar = await car.save();
@@ -450,8 +441,15 @@ exports.deleteCarById = catchAsyncErrors(async (req, res, next) => {
     } catch (err) {
       console.log("ImageKit delete error:", err.message);
     }
-  } else {
-    console.log("⚠️ ImageKit not configured, skipping delete");
+  } else if (deletedCar.image) {
+    // Clean up local storage files
+    try {
+      deleteLocalImage(deletedCar.image.main?.fileId);
+      deleteLocalImage(deletedCar.image.secondary?.fileId);
+      deleteLocalImage(deletedCar.image.tertiary?.fileId);
+    } catch (err) {
+      console.log("Local image delete error:", err.message);
+    }
   }
 
   await Dealer.findByIdAndUpdate(

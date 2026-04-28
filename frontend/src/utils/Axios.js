@@ -2,10 +2,7 @@ import axios from "axios";
 import { getAccessToken, getRefreshToken, getUserType } from "./Token";
 
 const axiosInstance = axios.create({
-  // baseURL: "http://localhost:3001/",
-  // baseURL: "https://car-dealership-backend.vercel.app/",
-  // baseURL: "https://car-dealership-backend.onrender.com/",
-  baseURL:"http://localhost:5000/",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
 });
 
 axiosInstance.interceptors.request.use(

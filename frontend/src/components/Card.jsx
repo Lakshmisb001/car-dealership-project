@@ -4,32 +4,22 @@ import Type_icon from "/assets/icon/type_icon.svg";
 import Conditioner_icon from "/assets/icon/conditioner_icon.svg";
 import Door_icon from "/assets/icon/door_icon.svg";
 import { Heart } from "lucide-react";
-// import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { updateSelectedCar, updateSelectedChat } from "../store/reducers/appReducer";
+import { updateSelectedCar } from "../store/reducers/appReducer";
 import { useNavigate } from "react-router-dom";
 import {
   asyncAddWatchList,
   asyncDeleteWatchList,
-  asyncMakePayment,
-  asyncVerifyPayment,
 } from "../store/actions/carActions";
 import {
   notifyError,
   notifyInfo,
-  notifyPendingPromise,
   notifySuccess,
-  notifySuccessPromise,
 } from "../utils/Toast";
 import { useEffect, useState } from "react";
-import useRazorpay from "react-razorpay";
 
 const Card = ({ car, buy = true }) => {
-  const [Razorpay] = useRazorpay();
-
-  const { isAuthenticated, userType, watchList } = useSelector(
-    (state) => state.app
-  );
+  const { isAuthenticated, userType, watchList } = useSelector((state) => state.app);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -37,186 +27,143 @@ const Card = ({ car, buy = true }) => {
   const [myCars, setMyCars] = useState([]);
 
   useEffect(() => {
-    let cars = [];
-    allCars?.map((car) => {
-      if (car.sold && user?._id == car?.buyer_id) cars.push(car._id);
-    });
-
+    const cars = (allCars || [])
+      .filter((c) => c.sold && user?._id == c?.buyer_id)
+      .map((c) => c._id);
     setMyCars(cars);
-  }, [allCars]);
+  }, [allCars, user]);
 
-  useEffect(() => {
-    // console.log(myCars, myCars.includes(car._id));
-  }, [myCars]);
-
-  const handleBuyNow = async (e) => {
+  const handleBuyNow = (e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
-      notifyInfo("Login to perfrom actions!");
+      notifyInfo("Login to perform actions!");
       return navigate("/sign-in");
     }
-    const id = notifyPendingPromise("Opening Payment Page...");
-    console.log("buy now");
-    // const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISH_KEY);
-    const res = await dispatch(asyncMakePayment(car?._id, user?._id));
-    console.log({ res });
-    // const result = stripe.redirectToCheckout({ sessionId: res.data.id });
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY, // Enter the Key ID generated from the Dashboard
-      amount: res.data.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
-      currency: "INR",
-      name: "CARMAX", //your business name
-      description: "Test Transaction",
-      image: car?.image?.main?.url,
-      order_id: res.data.id, //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
-      handler: function (response) {
-        dispatch(asyncVerifyPayment(response, car?._id)).then((res) => {
-          if (res == 200) navigate("/buyer/my-cars");
-          else notifyError(res.message);
-        });
-        console.log({ response });
-      },
-      prefill: {
-        //We recommend using the prefill parameter to auto-fill customer's contact information especially their phone number
-        name: user?.user_name, //your customer's name
-        email: user?.email,
-        contact: "9000090000", //Provide the customer's phone number for better conversion rates
-      },
-      notes: {
-        address: "Razorpay Corporate Office",
-      },
-      theme: {
-        color: "#1572D3",
-      },
-    };
-    const razor = new Razorpay(options);
-    razor.open();
-    notifySuccessPromise(id, "Opened successfully!");
+    dispatch(updateSelectedCar(car));
+    navigate("/payment");
   };
 
+  const inWatchList = watchList?.includes(car._id);
+  const isOwned = myCars.includes(car._id);
+
   return (
-    <>
-      {/* <Link to={"car-detail"}> */}
-      <div
-        className=" border-2 border-gray-200 p-5 rounded-xl relative hover:cursor-pointer"
-        onClick={() => {
-          dispatch(updateSelectedCar(car));
-          userType == "Dealer"
-            ? navigate("/dealer/car-detail")
-            : navigate(`/car-detail`);
-        }}
-      >
-        {userType != "Dealer" &&
-          (!myCars.includes(car._id) ? (
-            watchList?.includes(car._id) ? (
-              <div className=" absolute z-10 top-2 right-3 bg-slate-100 shadow-xl p-1.5 rounded-full flex items-center justify-center cursor-pointer">
-                <Heart
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dispatch(asyncDeleteWatchList(car._id)).then((res) => {
-                      if (res == 200) notifySuccess("Deleted from watch list!");
-                      else notifyError("Error deleting from watch list!");
-                    });
-                    console.log("watchlist");
-                  }}
-                  size={16}
-                  className={`hover:text-red-300 text-red-300 `}
-                  fill={`#FCA5A5`}
-                />
-              </div>
-            ) : (
-              <div className=" absolute z-10 top-2 right-3 bg-slate-100 shadow-xl p-1.5 rounded-full flex items-center justify-center cursor-pointer">
-                <Heart
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isAuthenticated) {
-                      notifyInfo("Login to perfrom actions!");
-                      return navigate("/sign-in");
-                    }
-                    dispatch(asyncAddWatchList(car._id)).then((res) => {
-                      if (res == 200) notifySuccess("Added to watch list!");
-                      else notifyError("Error adding to watch list!");
-                    });
-                    console.log("not watchlist");
-                  }}
-                  size={16}
-                  className={`hover:text-red-300  text-black`}
-                  fill="white"
-                />
-              </div>
-            )
-          ) : (
-            ""
-          ))}
-        <div className=" flex items-center justify-center relative overflow-hidden">
-          <div className="w-full h-48 rounded-md overflow-hidden">
-            <img
-              src={car?.image?.main?.url || Car_img}
-              alt="car image"
-              className="aspect-auto w-full h-full object-cover object-center hover:scale-125 transition-all duration-300 "
-            />
-          </div>
-          {car?.sold && (
-            <div className=" absolute top-[15px] left-[-20px] bg-red-400 z-20 px-7 -rotate-45 font-semibold text-[12px] ">
+    <div
+      className="border border-gray-200 bg-white p-4 rounded-2xl relative hover:shadow-lg transition-shadow duration-200 cursor-pointer group"
+      onClick={() => {
+        dispatch(updateSelectedCar(car));
+        userType === "Dealer" ? navigate("/dealer/car-detail") : navigate("/car-detail");
+      }}
+    >
+      {/* Watchlist heart — only for non-dealer, non-owned cars */}
+      {userType !== "Dealer" && !isOwned && (
+        <button
+          type="button"
+          aria-label={inWatchList ? "Remove from watchlist" : "Add to watchlist"}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isAuthenticated) {
+              notifyInfo("Login to perform actions!");
+              return navigate("/sign-in");
+            }
+            if (inWatchList) {
+              dispatch(asyncDeleteWatchList(car._id)).then((res) => {
+                res === 200 ? notifySuccess("Removed from watchlist!") : notifyError("Error removing from watchlist");
+              });
+            } else {
+              dispatch(asyncAddWatchList(car._id)).then((res) => {
+                res === 200 ? notifySuccess("Added to watchlist!") : notifyError("Error adding to watchlist");
+              });
+            }
+          }}
+          className="absolute z-10 top-3 right-3 bg-white shadow-md p-2 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
+        >
+          <Heart
+            size={16}
+            className={inWatchList ? "text-red-400" : "text-gray-400"}
+            fill={inWatchList ? "#FCA5A5" : "white"}
+          />
+        </button>
+      )}
+
+      {/* Car image */}
+      <div className="relative overflow-hidden rounded-xl mb-3">
+        <div className="w-full h-44 bg-gray-50 rounded-xl overflow-hidden">
+          <img
+            src={typeof car?.image === "string" ? car.image : car?.image?.main?.url || Car_img}
+            alt={`${car?.name} ${car?.model}`}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+
+        {/* Status ribbon — logic:
+            Sold + I bought it  → "Bought"  (green, buyer only)
+            Sold + someone else → "Sold"    (red)
+            Not sold + dealer   → "For Sale" (green, dealer view only)
+            Not sold + buyer    → nothing (sold cars are already filtered on browse pages) */}
+        {car?.sold ? (
+          userType === "Buyer" && user?._id === car?.buyer_id ? (
+            <div className="absolute top-3 left-[-28px] bg-green-500 z-20 px-9 py-0.5 -rotate-45 font-semibold text-xs text-white shadow-sm">
               Bought
             </div>
-          )}
-        </div>
-        <h1 className=" text-lg font-semibold text-black mt-2 line-clamp-[1]">
-          {car?.name} {car?.model}
-        </h1>
-        <p className=" text-sm font-semibold mt-1 -ml-1">
-          ⭐ {car?.rating}
-          <span className="text-[#808080] font-medium">
-            ({car?.review?.length || 0} reviews){" "}
-          </span>
-        </p>
-        <div className=" grid grid-cols-2 gap-x-14 mt-3 border-b-[1px] border-[#E0E0E0] pb-2">
-          {[
-            {
-              icon: User_icon,
-              content: `${car?.capacity} Passengers`,
-            },
-            {
-              icon: Type_icon,
-              content: car?.transmission || "NA",
-            },
-            {
-              icon: Conditioner_icon,
-              content: car?.air_conditioner ? "AC" : "Non Ac",
-            },
-            {
-              icon: Door_icon,
-              content: `${car?.door || 0} Doors`,
-            },
-          ].map((info, index) => (
-            <div key={index} className=" flex items-center gap-2 mb-3">
-              <img src={info.icon} alt="" />
-              <span className="text-xs lg:text-sm font-normal text-[#959595] text-nowrap">
-                {info.content}
-              </span>
+          ) : (
+            <div className="absolute top-3 left-[-28px] bg-red-500 z-20 px-9 py-0.5 -rotate-45 font-semibold text-xs text-white shadow-sm">
+              Sold
             </div>
-          ))}
+          )
+        ) : userType === "Dealer" ? (
+          <div className="absolute top-3 left-[-28px] bg-green-500 z-20 px-9 py-0.5 -rotate-45 font-semibold text-xs text-white shadow-sm">
+            For Sale
+          </div>
+        ) : null}
+      </div>
+
+      {/* Car name & rating */}
+      <h2 className="text-base font-semibold text-gray-900 truncate">
+        {car?.name} {car?.model}
+      </h2>
+      <p className="text-sm font-medium mt-0.5 text-gray-600">
+        ⭐ {car?.rating ?? 0}{" "}
+        <span className="text-gray-400 font-normal">
+          ({car?.review?.length ?? 0} reviews)
+        </span>
+      </p>
+
+      {/* Car specs */}
+      <div className="grid grid-cols-2 gap-x-4 mt-3 pb-3 border-b border-gray-100">
+        {[
+          { icon: User_icon, content: `${car?.capacity ?? "–"} Passengers` },
+          { icon: Type_icon, content: car?.transmission || "NA" },
+          { icon: Conditioner_icon, content: car?.air_conditioner ? "AC" : "Non-AC" },
+          { icon: Door_icon, content: `${car?.door ?? 0} Doors` },
+        ].map((info, index) => (
+          <div key={index} className="flex items-center gap-1.5 mt-2">
+            <img src={info.icon} alt="" className="w-4 h-4 shrink-0" />
+            <span className="text-xs text-gray-500 truncate">{info.content}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Price & buy button */}
+      <div className="flex items-center justify-between mt-3">
+        <div>
+          <span className="text-xs text-gray-400">Price</span>
+          <p className="text-base font-bold text-gray-900">
+            ₹ {car?.price?.toLocaleString("en-IN") ?? "N/A"}
+          </p>
         </div>
 
-        <div className=" flex items-center justify-between mt-3">
-          <span className=" text-sm text-[#595959] font-medium">Price</span>
-          <span className=" text-base font-semibold">
-            ₹ {car?.price.toLocaleString("en-IN")}
-          </span>
-        </div>
-
-        {userType != "Dealer" && buy && (
+        {userType !== "Dealer" && buy && !car?.sold && (
           <button
+            type="button"
             onClick={handleBuyNow}
-            className="bg-[#1572D3] w-full py-2 text-white rounded-lg mt-3"
+            className="bg-[#1572D3] hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
           >
             Buy Now
           </button>
         )}
       </div>
-      {/* </Link> */}
-    </>
+    </div>
   );
 };
 

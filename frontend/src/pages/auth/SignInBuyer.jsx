@@ -92,25 +92,22 @@ const SignInBuyer = () => {
                     value={values?.password}
                     touched={touched?.password}
                   />
-                  <div>
+                  <div className="flex flex-col gap-3">
                     <button
                       type="button"
                       onClick={() => {
-                        setValues({
-                          email: "buyer@gmail.com",
-                          password: "buyer123",
-                        });
+                        setValues({ email: "buyer@gmail.com", password: "buyer123" });
                       }}
-                      className="inline-flex mb-3 w-full items-center justify-center rounded-md bg-black px-3.5 py-2.5 font-semibold leading-7 text-white hover:bg-black/80"
+                      className="inline-flex w-full items-center justify-center rounded-lg border-2 border-gray-300 bg-white px-3.5 py-2.5 font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
                     >
-                      Try Dummy
+                      Try Demo Account
                     </button>
                     <button
                       onClick={handleSubmit}
                       type="button"
-                      className="inline-flex w-full items-center justify-center rounded-md bg-black px-3.5 py-2.5 font-semibold leading-7 text-white hover:bg-black/80"
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-[#1572D3] hover:bg-blue-700 active:bg-blue-800 px-3.5 py-2.5 font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
                     >
-                      Get started <ArrowRight className="ml-2" size={16} />
+                      Sign In <ArrowRight className="ml-2" size={16} />
                     </button>
                   </div>
                 </div>

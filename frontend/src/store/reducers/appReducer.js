@@ -78,15 +78,17 @@ export const appReducer = createSlice({
       state.selectedCar.rating = action.payload.car_rating || 0;
     },
     addMessage: (state, action) => {
-      // console.log(action.payload);
       const index = state.user.chat.findIndex(
         (chat) => chat._id == action.payload.chat_id
       );
-      console.log(index);
-      if (index != -1) {
+      if (index !== -1) {
         state.user.chat[index].last_message = action.payload.message;
+        if (!state.user.chat[index].messages) state.user.chat[index].messages = [];
         state.user.chat[index].messages.push(action.payload);
-        state.selectedChat.messages.push(action.payload);
+        if (state.selectedChat?._id == action.payload.chat_id) {
+          if (!state.selectedChat.messages) state.selectedChat.messages = [];
+          state.selectedChat.messages.push(action.payload);
+        }
       }
     },
     addPrice: (state, action) => {
@@ -125,7 +127,9 @@ export const appReducer = createSlice({
           (chat) => chat._id == state.selectedChat._id
         );
 
-        state.user.chat[index].unread = false;
+        if (index !== -1) {
+          state.user.chat[index].unread = false;
+        }
       }
 
       if (state.unreadChat) {
@@ -139,7 +143,7 @@ export const appReducer = createSlice({
       !state.unreadChat
         ? (state.unreadChat = [action.payload])
         : !state.unreadChat.includes(action.payload) &&
-          state.unreadChat.push(action.payload.chat_id);
+          state.unreadChat.push(action.payload);
     },
     receiveMessage: (state, action) => {
       if (state.selectedChat?._id == action.payload.chat_id)
@@ -287,12 +291,12 @@ export const appReducer = createSlice({
         );
 
         if (carIndex != -1) {
-          draftState.allCars[index]?.bargained?.length != 0
-            ? draftState.allCars[index].bargained.push({
+          draftState.allCars[carIndex].bargained?.length
+            ? draftState.allCars[carIndex].bargained.push({
                 id: action.payload.buyer_id,
                 price: action.payload.price.price,
               })
-            : (draftState.allCars[index].bargained = [
+            : (draftState.allCars[carIndex].bargained = [
                 {
                   id: action.payload.buyer_id,
                   price: action.payload.price.price,
@@ -300,7 +304,7 @@ export const appReducer = createSlice({
               ]);
 
           draftState.selectedCar &&
-            (draftState.selectedCar = draftState.allCars[index]);
+            (draftState.selectedCar = draftState.allCars[carIndex]);
         }
       });
     },

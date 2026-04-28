@@ -73,28 +73,33 @@ export const asyncDeleteCar = catchAsyncError((carId) => async (dispatch) => {
 // -----------------------------BUyer----------------------------------------
 export const asyncGetAllCars = catchAsyncError(
   (queryParams) => async (dispatch) => {
-    //console.log(queryParams);
     const params = new URLSearchParams(queryParams);
-    const page = params.get("page");
+    const page = params.get("page") || 1;
     const type = params.get("type");
     const capacity = params.get("capacities");
+    const search = params.get("search");
+    const minPrice = params.get("minPrice");
+    const maxPrice = params.get("maxPrice");
+    const sort = params.get("sort");
 
     let queryString = "page=" + page;
 
     if (type) queryString += "&type=" + type;
 
     if (capacity) {
-      let capacityValues = capacity.split(",");
-      capacityValues = capacityValues.map((val) => {
-        // return val.split(" ")[0].join(",");
-        return val.split(" ")[0];
-      });
-      capacityValues = capacityValues.join(",");
+      const capacityValues = capacity
+        .split(",")
+        .map((val) => val.split(" ")[0])
+        .join(",");
       queryString += "&capacity=" + capacityValues;
     }
 
+    if (search) queryString += "&search=" + encodeURIComponent(search);
+    if (minPrice) queryString += "&minPrice=" + minPrice;
+    if (maxPrice) queryString += "&maxPrice=" + maxPrice;
+    if (sort) queryString += "&sort=" + sort;
+
     const res = await axiosInstance.get(`/car/get?${queryString}`);
-    //console.log(res);
     dispatch(updateAllCars(res.data.cars));
 
     return res.status;

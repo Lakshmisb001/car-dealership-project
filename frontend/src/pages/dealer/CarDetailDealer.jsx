@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { updateSelectedCar } from "../../store/reducers/appReducer";
 import { Rating } from "@mui/material";
 import RatingAndReview from "../../components/RatingAndReview";
+import DeleteCarDealerDialog from "../../components/DeleteCarDealerDialog";
 
 const CarDetailDealer = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const CarDetailDealer = () => {
 
   const [activeImage, setActiveImage] = useState(0);
   const [index, setIndex] = useState(-1);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   let images = [
     selectedCar?.image?.main?.url || Car_img,
@@ -115,15 +117,20 @@ const CarDetailDealer = () => {
                 <div className="">
                   <div className="w-full flex flex-row-reverse gap-4">
                     <div className="relative mb-2.5 overflow-hidden rounded-md border w-full min-h-[20vh] lg:min-h-[50vh]">
-                      <div className=" absolute top-[20px] left-[-25px] bg-red-400 z-20 px-10 -rotate-45 font-semibold text-base ">
-                        Sold
-                      </div>
+                      {/* Conditional status ribbon */}
+                      {selectedCar?.sold ? (
+                        <div className="absolute top-[20px] left-[-28px] bg-red-500 z-20 px-10 py-0.5 -rotate-45 font-semibold text-sm text-white shadow-md">
+                          Sold
+                        </div>
+                      ) : (
+                        <div className="absolute top-[20px] left-[-28px] bg-green-500 z-20 px-10 py-0.5 -rotate-45 font-semibold text-sm text-white shadow-md">
+                          For Sale
+                        </div>
+                      )}
                       <div className="relative flex items-center justify-center w-full h-full">
                         <img
                           alt="Product gallery 1"
                           src={images[activeImage]}
-                          // width={650}
-                          // height={590}
                           className="rounded-lg object-contain h-full w-full"
                         />
                       </div>
@@ -221,16 +228,16 @@ const CarDetailDealer = () => {
                     </div>
 
                     {!selectedCar?.sold && (
-                      <div className="flex flex-col lg:flex-row lg:divide-x text-xs lg:text-sm">
+                      <div className="flex flex-col lg:flex-row lg:divide-x text-xs lg:text-sm gap-1">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log("remove clicked");
+                            setDeleteOpen(true);
                           }}
-                          className="flex items-center space-x-2  lg:px-2 py-1 pl-0 hover:text-red-400"
+                          className="flex items-center gap-1.5 lg:px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors"
                         >
-                          <Trash size={16} />
+                          <Trash size={15} />
                           <span>Remove</span>
                         </button>
                         <button
@@ -238,11 +245,11 @@ const CarDetailDealer = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             dispatch(updateSelectedCar(selectedCar));
-                            navigate("/dealer/edit-Car");
+                            navigate("/dealer/edit-car");
                           }}
-                          className="flex items-center space-x-2 lg:px-2 py-1 hover:text-blue-400"
+                          className="flex items-center gap-1.5 lg:px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-500 transition-colors"
                         >
-                          <Pencil size={16} />
+                          <Pencil size={15} />
                           <span>Edit</span>
                         </button>
                       </div>
@@ -294,6 +301,21 @@ const CarDetailDealer = () => {
             })}
           </div> */}
           <RatingAndReview />
+
+          {/* Delete confirmation dialog */}
+          {deleteOpen && (
+            <div
+              onClick={() => setDeleteOpen(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            >
+              <DeleteCarDealerDialog
+                setDeleteOpen={(val) => {
+                  setDeleteOpen(val);
+                  if (!val) navigate("/dealer/my-cars");
+                }}
+              />
+            </div>
+          )}
 
           <div className=" container px-8 mt-0 mb-10">
             <div className=" flex items-center justify-between">

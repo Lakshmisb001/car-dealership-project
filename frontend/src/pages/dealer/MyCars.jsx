@@ -6,7 +6,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { notifyError } from "../../utils/Toast";
 import { asyncGetDealerCars } from "../../store/actions/carActions";
 import Pagination from "../../components/Pagination";
-import Ribbon from "../../components/Ribbon";
 import { updateSelectedCar } from "../../store/reducers/appReducer";
 import DeleteCarDealerDialog from "../../components/DeleteCarDealerDialog";
 
@@ -85,10 +84,10 @@ const MyCars = () => {
         </div>
 
         <Link
-          to={`/dealer/add-Car`}
-          className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-lg hover:bg-black/80"
+          to="/dealer/add-car"
+          className="rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
         >
-          Add new car
+          + Add Car
         </Link>
       </div>
 
@@ -156,7 +155,7 @@ const MyCars = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             dispatch(updateSelectedCar(car));
-                            navigate("/dealer/edit-Car");
+                            navigate("/dealer/edit-car");
                           }}
                           className="hover:text-blue-500 flex items-center gap-1"
                         >

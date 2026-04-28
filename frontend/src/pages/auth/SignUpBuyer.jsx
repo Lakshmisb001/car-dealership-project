@@ -109,9 +109,9 @@ const SignUpBuyer = () => {
                     <button
                       onClick={handleSubmit}
                       type="button"
-                      className="inline-flex w-full items-center justify-center rounded-md bg-black px-3.5 py-2.5 font-semibold leading-7 text-white hover:bg-black/80"
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-[#1572D3] hover:bg-blue-700 active:bg-blue-800 px-3.5 py-2.5 font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
                     >
-                      Get started <ArrowRight className="ml-2" size={16} />
+                      Create Account <ArrowRight className="ml-2" size={16} />
                     </button>
                   </div>
                 </div>

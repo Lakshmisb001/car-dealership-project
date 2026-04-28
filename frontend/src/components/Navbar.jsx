@@ -3,8 +3,8 @@ import Logo from "./Logo";
 import { NavItems } from "../../constants";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Avatar from "/assets/image/Avatar.png";
-import { CarTaxiFront, LogOut } from "lucide-react";
+import DefaultAvatar from "/assets/image/Avatar.png";
+import { CarTaxiFront, LogOut, UserCircle } from "lucide-react";
 import { asyncLogOut } from "../store/actions/appActions";
 import { Tooltip } from "@mui/material";
 import { notifyError, notifySuccess } from "../utils/Toast";
@@ -24,7 +24,7 @@ const Navbar = () => {
 
   const [avatarOpen, setAvatarOpen] = useState(false);
 
-  const { isAuthenticated } = useSelector((state) => state.app);
+  const { isAuthenticated, user } = useSelector((state) => state.app);
 
   const dispatch = useDispatch();
 
@@ -172,45 +172,55 @@ const Navbar = () => {
                   className="text-gray-500 hover:text-red-700 cursor-pointer transition-all"
                 />
               </Tooltip>
-              <Link
-                onClick={() => {
-                  setAvatarOpen(!avatarOpen);
-                }}
+              <button
+                id="avatar"
+                type="button"
+                onClick={() => setAvatarOpen(!avatarOpen)}
+                className="focus:outline-none"
               >
                 <img
                   id="avatar"
-                  src={Avatar}
+                  src={user?.avatar?.url || DefaultAvatar}
                   alt="Avatar"
-                  className=" object-cover"
+                  onError={(e) => { e.target.src = DefaultAvatar; }}
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-200 hover:ring-blue-400 transition-all"
                 />
                 {avatarOpen && (
                   <div
                     ref={dropdownRef}
-                    className="absolute top-[105%] flex flex-col text-gray-600 rounded-lg gap-1 text-center right-0 bg-white   p-1 shadow-2xl"
+                    className="absolute top-[105%] right-0 min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 p-1 z-50"
                   >
+                    <div className="px-3 py-2 border-b border-gray-100 text-left">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{user?.user_name}</p>
+                      <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                    </div>
                     <Link
-                      to={"/buyer/my-cars"}
-                      className="transition-all rounded-lg py-3 px-4 hover:bg-gray-100"
+                      to="/profile"
+                      className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                     >
-                      {" "}
-                      My Cars
+                      <UserCircle size={16} /> My Profile
                     </Link>
-                    <hr />
+                    <Link
+                      to="/buyer/my-cars"
+                      className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <CarTaxiFront size={16} /> My Cars
+                    </Link>
+                    <hr className="my-1" />
                     <button
+                      type="button"
                       onClick={() => {
                         const res = dispatch(asyncLogOut());
-                        console.log(res);
-                        if (res == 200)
-                          notifySuccess("Logged out successfully!");
+                        if (res == 200) notifySuccess("Logged out successfully!");
                         else notifyError("Error logging out!");
                       }}
-                      className="flex px-4 py-3 gap-3 pt-3   items-center text-red-500 hover:bg-red-100  transition-all rounded-lg"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors focus:outline-none"
                     >
-                      <LogOut size={20} /> Logout
+                      <LogOut size={16} /> Logout
                     </button>
                   </div>
                 )}
-              </Link>
+              </button>
             </div>
           ) : (
             <div className=" space-x-4">
@@ -307,40 +317,51 @@ const Navbar = () => {
                 <div>
                   {isAuthenticated ? (
                     <div className="mt-3">
+                      {/* User info row */}
+                      <div className="flex items-center gap-3 px-3 py-3 border-b border-gray-100 mb-1">
+                        <img
+                          src={user?.avatar?.url || DefaultAvatar}
+                          alt="avatar"
+                          onError={(e) => { e.target.src = DefaultAvatar; }}
+                          className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-200"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{user?.user_name}</p>
+                          <p className="text-xs text-gray-400">{user?.email}</p>
+                        </div>
+                      </div>
                       <Link
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        to={"/buyer/watch-list"}
-                        className="-m-3 flex items-center rounded-md px-3 py-3 text-sm font-semibold hover:bg-gray-50"
-                      >
-                        <span className="ml-3 text-base font-medium text-gray-900">
-                          WatchList
-                        </span>
-                      </Link>
-                      <Link
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        to={"/buyer/my-cars"}
+                        onClick={() => setIsMenuOpen(false)}
+                        to="/profile"
                         className="-m-3 flex items-center rounded-md px-3 py-2 text-sm font-semibold hover:bg-gray-50"
                       >
-                        <span className="ml-3 text-base font-medium text-gray-900">
-                          My Cars
-                        </span>
+                        <span className="ml-3 text-base font-medium text-gray-900">My Profile</span>
                       </Link>
                       <Link
+                        onClick={() => setIsMenuOpen(false)}
+                        to="/buyer/watch-list"
+                        className="-m-3 flex items-center rounded-md px-3 py-2 text-sm font-semibold hover:bg-gray-50"
+                      >
+                        <span className="ml-3 text-base font-medium text-gray-900">WatchList</span>
+                      </Link>
+                      <Link
+                        onClick={() => setIsMenuOpen(false)}
+                        to="/buyer/my-cars"
+                        className="-m-3 flex items-center rounded-md px-3 py-2 text-sm font-semibold hover:bg-gray-50"
+                      >
+                        <span className="ml-3 text-base font-medium text-gray-900">My Cars</span>
+                      </Link>
+                      <button
+                        type="button"
                         onClick={() => {
-                          const res = dispatch(asyncLogOut());
-                          console.log(res);
-                          if (res == 200)
-                            notifySuccess("Logged out successfully!");
-                          else notifyError("Error logging out!");
-                          setIsMenuOpen(!isMenuOpen);
+                          dispatch(asyncLogOut());
+                          notifySuccess("Logged out successfully!");
+                          setIsMenuOpen(false);
                         }}
-                        to={``}
-                        className="-m-3 flex items-center rounded-md px-3 py-2 text-sm font-semibold hover:bg-gray-50"
+                        className="-m-3 flex w-full items-center rounded-md px-3 py-2 text-sm font-semibold hover:bg-red-50"
                       >
-                        <span className="ml-3 text-base font-medium text-red-300">
-                          Logout
-                        </span>
-                      </Link>
+                        <span className="ml-3 text-base font-medium text-red-400">Logout</span>
+                      </button>
                     </div>
                   ) : (
                     <div className=" space-x-4 mt-5 ml-3">

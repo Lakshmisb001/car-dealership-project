@@ -8,6 +8,7 @@ import DashboardLayout from "../../components/DashboardLayout";
 import AddCar from "./AddCar";
 import EditCar from "./EditCar";
 import CarDetail from "./CarDetailDealer";
+import Profile from "../Profile";
 import { useMediaQuery } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { asyncLogOut } from "../../store/actions/appActions";
@@ -45,6 +46,7 @@ const Dealer = () => {
               <Route path="/add-car" element={<AddCar />} />
               <Route path="/edit-car" element={<EditCar />} />
               <Route path="/car-detail" element={<CarDetail />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </div>
         </DashboardLayout>

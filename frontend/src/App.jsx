@@ -11,13 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 // import Dealer from "./pages/dealer/Dealer";
 import { useEffect, useRef } from "react";
 import Dealer from "./pages/dealer/Dealer";
-import axios from "axios";
-import {
-  notifyError,
-  notifyErrorPromise,
-  notifyPendingPromise,
-  notifySuccessPromise,
-} from "./utils/Toast";
+import { notifyError } from "./utils/Toast";
 import { asyncCurrentUser } from "./store/actions/appActions";
 import { disconnect, getSocket, initializeConnection } from "./utils/Socket";
 import Cars from "./pages/buyer/Cars";
@@ -37,9 +31,9 @@ import WatchList from "./pages/buyer/WatchList";
 import IsAuthenticated from "./middleware/IsAuthenticated";
 import { asyncGetAllCars } from "./store/actions/carActions";
 import MyCars from "./pages/buyer/MyCars";
+import Profile from "./pages/Profile";
+import PaymentPage from "./pages/buyer/PaymentPage";
 import { useLocation } from "react-router-dom";
-// import CarDetailDealer from "./pages/dealer/CarDetailDealer";
-// import Wishlist from "./pages/Wishlist";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -84,7 +78,6 @@ const App = () => {
       });
     } else {
       disconnect();
-      navigate("/");
     }
   }, [isAuthenticated, user]);
 
@@ -109,19 +102,17 @@ const App = () => {
   }, [selectedChat]);
 
   useEffect(() => {
-    let id;
     if (
       !isAuthenticated &&
       (localStorage.getItem("accessToken") ||
         localStorage.getItem("refreshToken"))
     ) {
-      id = notifyPendingPromise("Fetching Current User...");
       dispatch(asyncCurrentUser()).then((res) => {
-        if (res.status == 200) {
-          notifySuccessPromise(id, `${res.userType} fetched successfully!`);
-        } else {
-          console.log(res.message);
-          notifyErrorPromise(id, res.message);
+        if (res.status !== 200) {
+          // Stale or invalid tokens — clear silently so the user can log in fresh
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("userType");
         }
       });
     }
@@ -179,7 +170,22 @@ const App = () => {
             }
           />
           <Route path="/car-detail" element={<CarDetail />} />
-          {/* <Route path="/dealer/car-detail" element={<CarDetailDealer />} /> */}
+          <Route
+            path="/payment"
+            element={
+              <IsAuthenticated>
+                <PaymentPage />
+              </IsAuthenticated>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <IsAuthenticated>
+                <Profile />
+              </IsAuthenticated>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />

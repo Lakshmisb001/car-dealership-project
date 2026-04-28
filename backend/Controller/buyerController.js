@@ -8,6 +8,8 @@ const {
   generateUserTypeToken,
 } = require("../Utils/tokenUtilityFunctions");
 const { removePassword } = require("../Utils/removePassword");
+const { saveLocalImage, deleteLocalImage } = require("../Utils/fileStorage");
+let imageKit = require("../Utils/imageKit").initImageKit();
 
 const validateInput = [
   body("email")
@@ -290,4 +292,62 @@ exports.emptyWatchList = catchAsyncErrors(async (req, res, next) => {
     message: "Watch List emptied successfully",
     newAccessToken,
   });
+});
+
+// UPDATE OWN PROFILE (name, email, phone, location, avatar)
+exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
+  const buyer = await Buyer.findById(req.userId);
+  if (!buyer) return next(new ErrorHandler("Buyer not found", 404));
+
+  const { user_name, email, phone, location } = req.body;
+  if (user_name !== undefined) buyer.user_name = user_name;
+  if (email !== undefined) {
+    const exists = await Buyer.findOne({ email, _id: { $ne: req.userId } });
+    if (exists) return next(new ErrorHandler("Email already in use", 400));
+    buyer.email = email;
+  }
+  if (phone !== undefined) buyer.phone = phone;
+  if (location !== undefined) buyer.location = location;
+
+  if (req.files?.avatar) {
+    if (buyer.avatar?.fileId) deleteLocalImage(buyer.avatar.fileId);
+    buyer.avatar = await saveLocalImage(req.files.avatar, "avatar-buyer");
+  }
+
+  await buyer.save();
+  const newAccessToken = req.newAccessToken;
+  delete req.newAccessToken;
+  res.status(200).json({ message: "Profile updated", user: removePassword(buyer.toObject()), newAccessToken });
+});
+
+// CHANGE PASSWORD
+exports.changePassword = catchAsyncErrors(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword)
+    return next(new ErrorHandler("Both current and new password are required", 400));
+  if (newPassword.length < 6)
+    return next(new ErrorHandler("New password must be at least 6 characters", 400));
+
+  const buyer = await Buyer.findById(req.userId).select("+password");
+  if (!buyer) return next(new ErrorHandler("Buyer not found", 404));
+  if (!buyer.comparePassword(currentPassword))
+    return next(new ErrorHandler("Current password is incorrect", 401));
+
+  buyer.password = newPassword;
+  await buyer.save();
+
+  const newAccessToken = req.newAccessToken;
+  delete req.newAccessToken;
+  res.status(200).json({ message: "Password changed successfully", newAccessToken });
+});
+
+// DELETE OWN ACCOUNT
+exports.deleteAccount = catchAsyncErrors(async (req, res, next) => {
+  const buyer = await Buyer.findById(req.userId);
+  if (!buyer) return next(new ErrorHandler("Buyer not found", 404));
+
+  if (buyer.avatar?.fileId) deleteLocalImage(buyer.avatar.fileId);
+  await Buyer.findByIdAndDelete(req.userId);
+
+  res.status(200).json({ message: "Account deleted successfully" });
 });

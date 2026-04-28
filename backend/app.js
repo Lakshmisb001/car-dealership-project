@@ -6,6 +6,7 @@ const fileUpload = require("express-fileupload");
 const logger = require("morgan");
 const http = require("http");
 const socketIo = require("socket.io");
+const path = require("path");
 
 const dbconnection = require("./Config/Dbconfiguration");
 
@@ -14,31 +15,66 @@ dbconnection();
 
 const app = express();
 const server = http.Server(app);
+
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "https://car-dealership-frontend.vercel.app",
+];
+
 const io = socketIo(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://car-dealership-frontend.vercel.app",
-    ],
+    origin: ALLOWED_ORIGINS,
     credentials: true,
   },
 });
 
+// Security middleware
+try {
+  const helmet = require("helmet");
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+} catch (e) {
+  console.log("⚠️ helmet not installed, skipping");
+}
+
+try {
+  const compression = require("compression");
+  app.use(compression());
+} catch (e) {
+  console.log("⚠️ compression not installed, skipping");
+}
+
+try {
+  const rateLimit = require("express-rate-limit");
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: "Too many requests, please try again later." },
+    })
+  );
+} catch (e) {
+  console.log("⚠️ express-rate-limit not installed, skipping");
+}
+
 // Middleware
-app.use(fileUpload());
+app.use(fileUpload({ limits: { fileSize: 10 * 1024 * 1024 } }));
 app.use(logger("tiny"));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://car-dealership-frontend.vercel.app",
-    ],
+    origin: ALLOWED_ORIGINS,
     credentials: true,
   })
 );
+
+// Serve local uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Routes
 app.use("/", require("./Routes/index"));
@@ -60,7 +96,7 @@ app.all("*", (req, res, next) => {
 app.use(generatedError);
 
 // Server
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Listening on ${PORT}`);
 });

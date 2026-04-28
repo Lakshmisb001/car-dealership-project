@@ -98,26 +98,23 @@ const AddCar = () => {
     if (!checkImages()) return;
 
     const id = notifyPendingPromise("Creating car...");
-    const dataToSend = {
-      images: {
-        main: image.main,
-        secondary: image.secondary,
-        tertiary: image.tertiary,
-      },
 
-      description: description,
-      name: val.name,
-      type: val.type,
-      model: val.model,
-      door: val.door,
-      air_conditioner: Boolean(val.air_conditioner),
-      fuel_capacity: val.fuel_capacity,
-      transmission: val.transmission,
-      price: val.price,
-      capacity: Number(val.capacity.split(" ")[0]),
-    };
+    const formData = new FormData();
+    formData.append("name", val.name);
+    formData.append("type", val.type);
+    formData.append("model", val.model);
+    formData.append("door", val.door);
+    formData.append("air_conditioner", val.air_conditioner === "True" ? "true" : "false");
+    formData.append("fuel_capacity", val.fuel_capacity);
+    formData.append("transmission", val.transmission);
+    formData.append("price", val.price);
+    formData.append("capacity", Number(val.capacity.split(" ")[0]));
+    formData.append("description", description);
+    formData.append("images[main]", image.main);
+    formData.append("images[secondary]", image.secondary);
+    formData.append("images[tertiary]", image.tertiary);
 
-    dispatch(asyncCreateCar(dataToSend)).then((res) => {
+    dispatch(asyncCreateCar(formData)).then((res) => {
       if (res == 200) {
         notifySuccessPromise(id, "Car created successfully!");
         navigate("/dealer/my-cars");
@@ -428,22 +425,21 @@ const AddCar = () => {
                       touched={touched?.capacity}
                     />
                   </div>
-                  <div className=" flex items-center justify-end">
-                    <div className="space-x-2">
-                      <button
-                        onClick={handleSubmit}
-                        type="button"
-                        className="rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                      >
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md bg-red-300 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-300/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-end gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dealer/my-cars")}
+                      className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      type="button"
+                      className="rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-5 py-2 text-sm font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
+                    >
+                      Add Car
+                    </button>
                   </div>
                 </>
               )}
